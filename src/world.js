@@ -5,7 +5,8 @@ import { river } from './terrain.js';
 import { cloudLayer } from './clouds.js';
 import { heightField, relief, fbm } from './relief.js';
 import { vegetation, scatter, slopeAt } from './vegetation.js';
-import { airportTexture, panel } from './label.js';
+import { placeLabel, sprite } from './label.js';
+import { createAircraft, airportModel } from './aircraft.js';
 import { FLIGHTS } from './path.js';
 import { campus, PAD as campusPad } from './stations/campus.js';
 import { quipux, PAD as quipuxPad } from './stations/quipux.js';
@@ -16,7 +17,7 @@ import { aunnait } from './stations/aunnait.js';
 
 const MOUNTAINS = [
   [-38, -62, 20, 9], [54, -84, 24, 11], [-36, -118, 18, 10], [50, -150, 22, 12], [-46, -178, 20, 9],
-  [58, -205, 18, 8], [-36, -236, 22, 9], [62, -252, 16, 7],
+  [58, -205, 18, 8], [-56, -228, 22, 9], [62, -252, 16, 7],
   [60, -356, 22, 10], [-38, -386, 20, 11], [56, -444, 24, 12], [-48, -458, 22, 10], [-40, -505, 20, 9], [40, -490, 18, 9]
 ];
 
@@ -28,45 +29,38 @@ const RIVERS = [
 const AIRPORTS = [
   ['SKMR', 'Montería', 22, 16],
   ['SKRG', 'Medellín', 14, -114],
-  ['SKMR', 'Montería', 30, -282],
+  ['SKMR', 'Montería', -30, -262],
   ['SKRG', 'Medellín', 16, -416]
 ];
 
-function legCurve(a, b) {
-  const A = new THREE.Vector3(a[2], 0.9, a[3]);
-  const B = new THREE.Vector3(b[2], 0.9, b[3]);
-  const dir = B.clone().sub(A).setY(0).normalize();
-  const mid = A.clone().lerp(B, 0.5).setY(26);
-  return new THREE.CatmullRomCurve3([
-    A,
-    A.clone().addScaledVector(dir, 10).setY(2.5),
-    A.clone().addScaledVector(dir, 34).setY(12),
-    mid,
-    B.clone().addScaledVector(dir, -34).setY(12),
-    B.clone().addScaledVector(dir, -10).setY(2.5),
-    B
-  ]);
+function runwayHeadings() {
+  const dir = (a, b) => new THREE.Vector3(b[2] - a[2], 0, b[3] - a[3]).normalize();
+  return AIRPORTS.map((ap, i) => {
+    const h = new THREE.Vector3();
+    if (i > 0) h.add(dir(AIRPORTS[i - 1], ap));
+    if (i < AIRPORTS.length - 1) h.add(dir(ap, AIRPORTS[i + 1]));
+    return h.normalize();
+  });
 }
 
-function airplane() {
-  const g = new THREE.Group();
-  const body = new THREE.CylinderGeometry(0.42, 0.62, 5.2, 10);
-  body.rotateX(Math.PI / 2);
-  g.add(solid(body, C.white, { angle: 40 }));
-  const nose = new THREE.ConeGeometry(0.42, 1.2, 10);
-  nose.rotateX(Math.PI / 2);
-  nose.translate(0, 0, 3.2);
-  g.add(solid(nose, C.white, { angle: 40 }));
-  const wing = new THREE.BoxGeometry(7.4, 0.14, 1.4);
-  wing.translate(0, -0.15, 0.3);
-  g.add(solid(wing, C.blue));
-  const stab = new THREE.BoxGeometry(2.8, 0.1, 0.8);
-  stab.translate(0, 0.1, -2.3);
-  g.add(solid(stab, C.blue));
-  const fin = new THREE.BoxGeometry(0.12, 1.5, 1);
-  fin.translate(0, 0.85, -2.3);
-  g.add(solid(fin, C.magenta));
-  return g;
+function legCurve(a, b, ha, hb) {
+  const A = new THREE.Vector3(a[2], 0.75, a[3]);
+  const B = new THREE.Vector3(b[2], 0.75, b[3]);
+  const along = B.clone().sub(A).setY(0).normalize();
+  const out = ha.clone().multiplyScalar(Math.sign(ha.dot(along)) || 1);
+  const inn = hb.clone().multiplyScalar(Math.sign(hb.dot(along)) || 1);
+  const mid = A.clone().lerp(B, 0.5).setY(24);
+  return new THREE.CatmullRomCurve3([
+    A,
+    A.clone().addScaledVector(out, 9).setY(1.4),
+    A.clone().addScaledVector(out, 22).setY(5),
+    A.clone().addScaledVector(out, 42).setY(13),
+    mid,
+    B.clone().addScaledVector(inn, -42).setY(13),
+    B.clone().addScaledVector(inn, -22).setY(5),
+    B.clone().addScaledVector(inn, -9).setY(1.4),
+    B
+  ]);
 }
 
 function stationPlantings(field) {
@@ -110,7 +104,7 @@ export function buildWorld(scene, path) {
     { ...gomedicalPad, x: 8, z: -300 },
     { ...metagroupPad, x: -8, z: -450 }
   ];
-  const flats = AIRPORTS.map(([, , x, z]) => ({ x, z, r: 9 }));
+  const flats = AIRPORTS.map(([, , x, z]) => ({ x, z, r: 17 }));
   const field = heightField({ mountains, pads, rivers: riverLines, flats });
   relief(scene, field);
   const waters = RIVERS.map((pts) => river(scene, pts));
@@ -140,7 +134,8 @@ export function buildWorld(scene, path) {
   const flora = vegetation(scene, plantings);
 
   const r = rng(77);
-  const legs = AIRPORTS.slice(0, 3).map((a, i) => legCurve(a, AIRPORTS[i + 1]));
+  const headings = runwayHeadings();
+  const legs = AIRPORTS.slice(0, 3).map((a, i) => legCurve(a, AIRPORTS[i + 1], headings[i], headings[i + 1]));
   const skyPlacements = [];
   const nearStation = (x, z) => pads.some((p) => Math.hypot(x - p.x, z - p.z) < p.r + 12);
   legs.forEach((curve) => {
@@ -169,27 +164,31 @@ export function buildWorld(scene, path) {
   }
   const sky = cloudLayer(scene, skyPlacements);
 
-  AIRPORTS.forEach(([code, name, x, z]) => {
-    const p = panel(airportTexture(code, name), 12);
-    p.rotation.x = -Math.PI / 2;
-    p.position.set(x, 0.08, z);
-    scene.add(p);
+  AIRPORTS.forEach(([, name, x, z], i) => {
+    const model = airportModel(headings[i]);
+    model.position.set(x, 0, z);
+    scene.add(model);
+    const label = sprite(placeLabel(`Aeropuerto de ${name}`), 9);
+    label.position.set(7.4, 7.5, 2);
+    label.material.depthWrite = false;
+    model.add(label);
   });
 
   const ticks = [];
   legs.forEach((curve) => {
-    const pts = curve.getSpacedPoints(160);
-    scene.add(polyline(pts, { color: C.magenta, width: 3 }));
-    for (let i = 3; i < pts.length - 1; i += 5) {
+    const pts = curve.getSpacedPoints(200);
+    scene.add(polyline(pts, { color: C.magenta, width: 1.6, opacity: 0.85 }));
+    for (let i = 6; i < pts.length - 6; i += 9) {
       const a = pts[i];
       const d = pts[i + 1].clone().sub(a);
-      const side = new THREE.Vector3(-d.z, 0, d.x).normalize().multiplyScalar(0.8);
+      const side = new THREE.Vector3(-d.z, 0, d.x).normalize().multiplyScalar(0.45);
       ticks.push(a.x - side.x, a.y, a.z - side.z, a.x + side.x, a.y, a.z + side.z);
     }
   });
-  scene.add(segments(ticks, { color: C.magenta, width: 2 }));
+  scene.add(segments(ticks, { color: C.magenta, width: 1.2, opacity: 0.85 }));
 
-  const plane = airplane();
+  const aircraft = createAircraft();
+  const plane = aircraft.object;
   scene.add(plane);
 
   const stations = [
@@ -207,6 +206,7 @@ export function buildWorld(scene, path) {
 
   const A = new THREE.Vector3();
   const B = new THREE.Vector3();
+  const D = new THREE.Vector3();
   const dir = new THREE.Vector3();
   const chasePos = new THREE.Vector3();
   const chaseLook = new THREE.Vector3();
@@ -233,9 +233,13 @@ export function buildWorld(scene, path) {
       const s = smooth(a, b, u);
       curve.getPoint(s, A);
       curve.getPoint(Math.min(1, s + 0.01), B);
+      curve.getPoint(Math.min(1, s + 0.04), D);
       plane.position.copy(A);
-      plane.lookAt(B);
-      plane.rotateZ(Math.sin(t * 0.9) * 0.06);
+      if (s < 0.995) plane.lookAt(B);
+      const h1x = B.x - A.x, h1z = B.z - A.z, h2x = D.x - B.x, h2z = D.z - B.z;
+      const n1 = Math.hypot(h1x, h1z) || 1, n2 = Math.hypot(h2x, h2z) || 1;
+      const turn = (h1x * h2z - h1z * h2x) / (n1 * n2);
+      aircraft.update(dt, turn, t);
 
       dir.subVectors(B, A).normalize();
       chasePos.copy(A).addScaledVector(dir, -24);

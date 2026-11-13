@@ -81,3 +81,16 @@ export function airportTexture(code, name) {
     ctx.fillText(name, cx, 486);
   });
 }
+
+export function placeLabel(text) {
+  return canvasTexture(1024, 160, (ctx, w, h) => {
+    setFont(ctx, 92, 700);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = 'rgba(227, 234, 216, 0.95)';
+    ctx.strokeText(text, w / 2, h / 2);
+    ctx.fillStyle = hex(C.blue);
+    ctx.fillText(text, w / 2, h / 2);
+  });
+}

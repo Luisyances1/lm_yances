@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { C, hex } from '../palette.js';
 import { box, solid, segments, polyline, rng } from '../ink.js';
 import { canvasTexture, sprite, roundRect } from '../label.js';
+import { vehicle, TAXI } from '../vehicles.js';
 
 function windows(w, h, d, cx, cy, cz) {
   const flat = [];
@@ -14,13 +15,6 @@ function windows(w, h, d, cx, cy, cz) {
   for (let k = cx - w / 2 + 1; k < cx + w / 2; k += 1) flat.push(k, cy - h / 2, z, k, cy + h / 2, z);
   for (let k = cz - d / 2 + 1; k < cz + d / 2; k += 1) flat.push(x, cy - h / 2, k, x, cy + h / 2, k);
   return segments(flat, { color: C.blue, width: 0.9, opacity: 0.75 });
-}
-
-function car(color) {
-  const g = new THREE.Group();
-  g.add(box(2.2, 0.7, 1.1, color, [0, 0.55, 0], { width: 1.1 }));
-  g.add(box(1.2, 0.55, 0.95, C.peak, [-0.1, 1.15, 0], { width: 1.1 }));
-  return g;
 }
 
 const bubbleTexture = () =>
@@ -68,9 +62,13 @@ export function quipux() {
 
   const r = rng(5);
   const cars = [];
-  const colors = [C.blue, C.white, C.slate, C.blue, C.sand, C.white, C.slate];
-  for (let i = 0; i < 7; i++) {
-    const c = car(colors[i]);
+  const fleet = [
+    ['sedan', TAXI, true], ['suv', C.white], ['sedan', C.blue], ['hatch', C.magenta],
+    ['sedan', TAXI, true], ['suv', C.slate], ['hatch', C.white]
+  ];
+  for (let i = 0; i < fleet.length; i++) {
+    const [kind, color, taxi] = fleet[i];
+    const c = vehicle(kind, color, { taxi });
     c.userData.phase = (i / 7) * Math.PI * 2 + r() * 0.3;
     c.userData.speed = 0.16 + r() * 0.05;
     group.add(c);
@@ -110,6 +108,7 @@ export function quipux() {
         c.position.y = top + 0.1;
         c.lookAt(q.x, top + 0.1, q.z);
         c.rotateY(-Math.PI / 2);
+        c.userData.wheels.forEach((w) => (w.rotation.z = -a * 40));
       });
       rings.forEach((ring) => (ring.material.opacity *= 0.94));
       bubbles.forEach((b) => {

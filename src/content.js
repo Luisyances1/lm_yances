@@ -11,22 +11,22 @@ export const profile = {
 export const stops = [
   {
     id: 'campus', kf: 1, short: 'Universidad',
-    code: 'SKMR', place: 'Montería, Córdoba', elevation: '18 m',
+    code: '', place: 'Montería, Córdoba', elevation: '18 m',
     role: 'Ingeniero de Sistemas', org: 'Universidad de Córdoba'
   },
   {
     id: 'quipux', kf: 4, short: 'Quipux',
-    code: 'SKRG', place: 'Medellín, Antioquia', elevation: '1.495 m',
+    code: '', place: 'Medellín, Antioquia', elevation: '1.495 m',
     role: 'Analista de Información', org: 'Quipux, en la Gobernación de Antioquia'
   },
   {
     id: 'gomedical', kf: 7, short: 'GoMedical',
-    code: 'SKMR', place: 'Montería, Córdoba', elevation: '18 m',
+    code: '', place: 'Montería, Córdoba', elevation: '18 m',
     role: 'Ingeniero de Desarrollo y Soporte', org: 'Go Medical International'
   },
   {
     id: 'metagroup', kf: 10, short: 'Metagroup',
-    code: 'SKRG', place: 'Medellín, Antioquia', elevation: '1.495 m',
+    code: '', place: 'Medellín, Antioquia', elevation: '1.495 m',
     role: 'Analista de Datos', org: 'Metagroup'
   },
   {
