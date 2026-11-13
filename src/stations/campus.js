@@ -1,24 +1,12 @@
 import * as THREE from 'three';
 import { C } from '../palette.js';
-import { box, solid, polyline, rng } from '../ink.js';
-import { contourStack } from '../terrain.js';
+import { box, solid, polyline } from '../ink.js';
 
-function tree(r, x, z, y) {
-  const g = new THREE.Group();
-  const h = 2.4 + r() * 1.8;
-  const trunk = box(0.35, 1.2, 0.35, C.umber, [0, 0.6, 0], { width: 1 });
-  const crown = solid(new THREE.ConeGeometry(1 + r() * 0.5, h, 7), C.forest, { angle: 30, width: 1.1 });
-  crown.position.y = 1.2 + h / 2;
-  g.add(trunk, crown);
-  g.position.set(x, y, z);
-  return g;
-}
+export const PAD = { r: 22, top: 2, seed: 1.3 };
 
 export function campus() {
   const group = new THREE.Group();
-  const island = contourStack({ r0: 24, levels: 2, step: 1, taper: 0.1, seed: 11, colors: [C.meadow, C.ochre] });
-  group.add(island);
-  const top = island.userData.top;
+  const top = PAD.top;
 
   const plaza = solid(new THREE.CylinderGeometry(7, 7, 0.12, 48), C.peak, { angle: 30, width: 1 });
   plaza.position.set(0, top + 0.06, 6);
@@ -55,16 +43,6 @@ export function campus() {
     polyline([new THREE.Vector3(-12.5, top + 8.6, -0.35), new THREE.Vector3(-12.5, top + 9.4, -0.35)], { width: 1.6 }),
     polyline([new THREE.Vector3(-12.5, top + 8.6, -0.35), new THREE.Vector3(-11.9, top + 8.6, -0.35)], { width: 1.6 })
   );
-
-  const r = rng(7);
-  for (let i = 0; i < 16; i++) {
-    const a = r() * Math.PI * 2;
-    const d = 12 + r() * 8;
-    const x = Math.cos(a) * d;
-    const z = Math.sin(a) * d * 0.8;
-    if (z > -6 && z < 10 && Math.abs(x) < 13) continue;
-    group.add(tree(r, x, z, top));
-  }
 
   const cap = new THREE.Group();
   const board = box(5, 0.28, 5, C.slate, [0, 0, 0], { lineColor: C.ink });

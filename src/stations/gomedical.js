@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { C, hex } from '../palette.js';
 import { box, solid, segments, outline } from '../ink.js';
-import { contourStack } from '../terrain.js';
 import { canvasTexture, panel, setFont } from '../label.js';
 
 function sliceTexture(k, framed) {
@@ -55,11 +54,11 @@ function sliceTexture(k, framed) {
   });
 }
 
+export const PAD = { r: 22, top: 2, seed: 4.1 };
+
 export function gomedical() {
   const group = new THREE.Group();
-  const island = contourStack({ r0: 24, levels: 2, step: 1, taper: 0.1, seed: 41, colors: [C.meadow, C.ochre] });
-  group.add(island);
-  const top = island.userData.top;
+  const top = PAD.top;
 
   group.add(box(16, 5, 7, C.peak, [-4, top + 2.5, -9]));
   group.add(box(16.4, 0.8, 7.4, C.blue, [-4, top + 3.4, -9], { width: 1 }));

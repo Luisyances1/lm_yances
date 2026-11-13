@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { C, hex } from '../palette.js';
 import { solid, polyline, segments, outline, toon, smooth } from '../ink.js';
-import { contourStack } from '../terrain.js';
 import { canvasTexture, panel, setFont, roundRect } from '../label.js';
 
 function daxCard(title, lines) {
@@ -31,14 +30,11 @@ function sector(r0, r1, a0, a1) {
   return s;
 }
 
+export const PAD = { r: 27, top: 7, seed: 6.2 };
+
 export function metagroup() {
   const group = new THREE.Group();
-  const plateau = contourStack({
-    r0: 30, levels: 7, step: 1, taper: 0.045, seed: 67,
-    colors: [C.lowland, C.meadow, C.meadow, C.ochre, C.ochre, C.sand, C.ochre]
-  });
-  group.add(plateau);
-  const top = plateau.userData.top;
+  const top = PAD.top;
 
   const floor = solid(new THREE.CylinderGeometry(17, 17, 0.2, 64), C.peak, { angle: 30, width: 1 });
   floor.position.y = top + 0.1;

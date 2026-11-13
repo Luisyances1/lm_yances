@@ -5,11 +5,12 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { C } from './palette.js';
+import { shadowVertexPars, shadowVertex, shadowFragmentPars, lightUniforms, LIGHT_DIR } from './lighting.js';
 
 const lineMaterials = new Set();
 const lineCache = new Map();
 const toonCache = new Map();
-const LIGHT = new THREE.Vector3(0.45, 0.85, 0.3).normalize();
+const LIGHT = LIGHT_DIR;
 
 export function setLineResolution(w, h) {
   lineMaterials.forEach((m) => m.resolution.set(w, h));
@@ -33,6 +34,7 @@ function sharedLine(color, width, opacity) {
 const vertex = /* glsl */ `
 #include <common>
 #include <fog_pars_vertex>
+${shadowVertexPars}
 varying vec3 vN;
 varying vec3 vCol;
 void main() {
@@ -48,8 +50,11 @@ void main() {
     vCol = vec3(1.0);
   #endif
   vN = normalize(mat3(modelMatrix) * n);
-  vec4 mvPosition = modelViewMatrix * p;
+  vec4 worldPosition = modelMatrix * p;
+  vec4 mvPosition = viewMatrix * worldPosition;
+  vec3 transformedNormal = normalMatrix * n;
   gl_Position = projectionMatrix * mvPosition;
+  ${shadowVertex}
   #include <fog_vertex>
 }`;
 
@@ -62,11 +67,15 @@ varying vec3 vN;
 varying vec3 vCol;
 #include <common>
 #include <fog_pars_fragment>
+${shadowFragmentPars}
 void main() {
   vec3 base = uColor * vCol;
-  float d = dot(normalize(vN), uLight);
+  vec3 n = normalize(vN);
+  float d = dot(n, uLight);
   float band = d > 0.55 ? 1.0 : (d > 0.05 ? 0.84 : 0.7);
-  gl_FragColor = vec4(mix(uShadow, base, band), uOpacity);
+  vec3 col = sky(mix(uShadow, base, band), n);
+  col = shade(col, uShadow, 1.0);
+  gl_FragColor = vec4(col, uOpacity);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>
@@ -78,6 +87,7 @@ export function toon(color, { opacity = 1, side = THREE.FrontSide, cache = true 
   const m = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
+      lightUniforms(),
       {
         uColor: { value: new THREE.Color(color) },
         uShadow: { value: new THREE.Color(C.shadow) },
@@ -88,6 +98,7 @@ export function toon(color, { opacity = 1, side = THREE.FrontSide, cache = true 
     vertexShader: vertex,
     fragmentShader: fragment,
     fog: true,
+    lights: true,
     transparent: opacity < 1,
     side
   });

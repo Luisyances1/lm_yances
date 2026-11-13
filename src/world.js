@@ -1,13 +1,16 @@
 import * as THREE from 'three';
 import { C } from './palette.js';
 import { solid, polyline, segments, rng, smooth } from './ink.js';
-import { ground, river, contourStack, cloud } from './terrain.js';
+import { river } from './terrain.js';
+import { cloudLayer } from './clouds.js';
+import { heightField, relief, fbm } from './relief.js';
+import { vegetation, scatter, slopeAt } from './vegetation.js';
 import { airportTexture, panel } from './label.js';
 import { FLIGHTS } from './path.js';
-import { campus } from './stations/campus.js';
-import { quipux } from './stations/quipux.js';
-import { gomedical } from './stations/gomedical.js';
-import { metagroup } from './stations/metagroup.js';
+import { campus, PAD as campusPad } from './stations/campus.js';
+import { quipux, PAD as quipuxPad } from './stations/quipux.js';
+import { gomedical, PAD as gomedicalPad } from './stations/gomedical.js';
+import { metagroup, PAD as metagroupPad } from './stations/metagroup.js';
 import { ascent } from './stations/ascent.js';
 import { aunnait } from './stations/aunnait.js';
 
@@ -15,6 +18,11 @@ const MOUNTAINS = [
   [-38, -62, 20, 9], [54, -84, 24, 11], [-36, -118, 18, 10], [50, -150, 22, 12], [-46, -178, 20, 9],
   [58, -205, 18, 8], [-36, -236, 22, 9], [62, -252, 16, 7],
   [60, -356, 22, 10], [-38, -386, 20, 11], [56, -444, 24, 12], [-48, -458, 22, 10], [-40, -505, 20, 9], [40, -490, 18, 9]
+];
+
+const RIVERS = [
+  [[-60, 90], [-34, 50], [-26, 20], [-34, -20], [-20, -60], [-30, -90]],
+  [[50, -240], [34, -270], [28, -310], [36, -350], [24, -380]]
 ];
 
 const AIRPORTS = [
@@ -61,37 +69,105 @@ function airplane() {
   return g;
 }
 
-export function buildWorld(scene, path) {
-  ground(scene);
-  river(scene, [[-60, 90], [-34, 50], [-26, 20], [-34, -20], [-20, -60], [-30, -90]]);
-  river(scene, [[50, -240], [34, -270], [28, -310], [36, -350], [24, -380]]);
+function stationPlantings(field) {
+  const list = [];
+  const r = rng(808);
+  const add = (kind, x, z, scale = 1) =>
+    list.push({ kind, x, z, y: field(x, z), rot: r() * Math.PI * 2, scale: scale * (0.85 + r() * 0.3), tone: Math.floor(r() * 8) });
 
-  MOUNTAINS.forEach(([x, z, r0, levels], i) => {
-    const m = contourStack({ r0, levels, step: 2, peak: true, seed: 300 + i, noise: 0.2 });
-    m.position.set(x, 0, z);
-    scene.add(m);
+  [[-18, 9], [16, -12]].forEach(([x, z]) => add('ceiba', x, z, 1.1));
+  [[-17, -4], [18, -2], [-16, 14], [11, -15], [-11, -14], [-21, -8], [21, -14]].forEach(([x, z]) => add('palm', x, z, 0.8));
+  [[-19, -12], [-13, 18], [3, -14], [-3, -15], [-20, 3], [8, -18]].forEach(([x, z]) => add('round', x, z));
+  for (let i = 0; i < 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    add('shrub', Math.cos(a) * 8.2, 6 + Math.sin(a) * 8.2, 0.9);
+  }
+
+  [[22, -312], [-6, -290], [-8, -306], [20, -318], [-12, -296]].forEach(([x, z]) => add('palm', x, z, 0.85));
+  [[-7, -318], [24, -306], [-14, -312]].forEach(([x, z]) => add('round', x, z));
+  [[-4, -312], [-2, -287]].forEach(([x, z]) => add('shrub', x, z));
+
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2 + 0.3;
+    add(i % 3 ? 'round' : 'highland', -10 + Math.cos(a) * 21, -149 + Math.sin(a) * 15);
+    add(i % 3 ? 'round' : 'highland', -8 + Math.cos(a + 0.2) * 21, -450 + Math.sin(a + 0.2) * 20);
+  }
+  return list;
+}
+
+export function buildWorld(scene, path) {
+  const riverLines = RIVERS.map((pts) =>
+    new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z))).getSpacedPoints(80)
+  );
+  const mr = rng(19);
+  const mountains = MOUNTAINS.map(([x, z, r, levels], i) => {
+    const a = mr() * Math.PI;
+    return { x, z, r: r * 1.05, h: levels * 2.2, aspect: 1 + mr() * 0.8, cos: Math.cos(a), sin: Math.sin(a), seed: 10 + i * 1.7 };
   });
+  const pads = [
+    { ...campusPad, x: 0, z: 0 },
+    { ...quipuxPad, x: -10, z: -150 },
+    { ...gomedicalPad, x: 8, z: -300 },
+    { ...metagroupPad, x: -8, z: -450 }
+  ];
+  const flats = AIRPORTS.map(([, , x, z]) => ({ x, z, r: 9 }));
+  const field = heightField({ mountains, pads, rivers: riverLines, flats });
+  relief(scene, field);
+  const waters = RIVERS.map((pts) => river(scene, pts));
+
+  const plantings = [...stationPlantings(field), ...scatter({
+    field,
+    seed: 42,
+    count: matchMedia('(max-width: 760px)').matches ? 700 : 1500,
+    area: [-200, 200, 110, -620],
+    accept: (x, z, y, r) => {
+      for (const p of pads) if (Math.hypot(x - p.x, z - p.z) < p.r * 1.4) return null;
+      for (const f of flats) if (Math.hypot(x - f.x, z - f.z) < 30) return null;
+      if (Math.hypot(x + 8, z + 488) < 16) return null;
+      for (const k of path.keys) if (Math.hypot(x - k.cam[0], z - k.cam[2]) < 16) return null;
+      if (y < 0.15 || slopeAt(field, x, z) > 0.95) return null;
+      const m = fbm(x * 0.02, z * 0.02, 3, 9.1);
+      const density = y > 3 ? 0.5 + m : 0.22 + m * 0.9;
+      if (r() > density) return null;
+      const k = r();
+      if (y > 10) return k < 0.85 ? 'highland' : 'round';
+      if (y > 3) return k < 0.5 ? 'highland' : k < 0.85 ? 'round' : 'shrub';
+      const caribe = z > -70 || (z < -240 && z > -350);
+      if (caribe) return k < 0.3 ? 'palm' : k < 0.38 ? 'ceiba' : k < 0.78 ? 'round' : 'shrub';
+      return k < 0.6 ? 'round' : 'shrub';
+    }
+  })];
+  const flora = vegetation(scene, plantings);
 
   const r = rng(77);
   const legs = AIRPORTS.slice(0, 3).map((a, i) => legCurve(a, AIRPORTS[i + 1]));
+  const skyPlacements = [];
+  const nearStation = (x, z) => pads.some((p) => Math.hypot(x - p.x, z - p.z) < p.r + 12);
   legs.forEach((curve) => {
-    for (let i = 0; i < 8; i++) {
-      const p = curve.getPoint(0.2 + r() * 0.6);
-      const c = cloud(500 + Math.floor(r() * 1000), 0.5 + r() * 0.6);
+    let placed = 0;
+    let guard = 0;
+    while (placed < 9 && guard++ < 60) {
+      const p = curve.getPoint(0.15 + r() * 0.7);
       const side = r() > 0.5 ? 1 : -1;
-      c.position.set(p.x + side * (16 + r() * 26), 22 + r() * 14, p.z + (r() - 0.5) * 30);
-      scene.add(c);
+      const x = p.x + side * (14 + r() * 30);
+      const z = p.z + (r() - 0.5) * 34;
+      if (nearStation(x, z)) continue;
+      skyPlacements.push({ x, y: 24 + r() * 16, z, scale: 0.6 + r() * 0.6, rot: r() * Math.PI });
+      placed++;
     }
   });
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 95; i++) {
     const a = r() * Math.PI * 2;
-    const d = 22 + r() * 62;
-    const x = -8 + Math.cos(a) * d;
-    const z = -500 + Math.sin(a) * d * 1.2;
-    const c = cloud(900 + i, 1 + r() * 1.4);
-    c.position.set(x, 62 + r() * 6, z);
-    scene.add(c);
+    const d = 20 + Math.sqrt(r()) * 80;
+    skyPlacements.push({
+      x: -8 + Math.cos(a) * d,
+      y: 60 + r() * 8,
+      z: -500 + Math.sin(a) * d * 1.2,
+      scale: 1.2 + r() * 1.1,
+      rot: r() * Math.PI
+    });
   }
+  const sky = cloudLayer(scene, skyPlacements);
 
   AIRPORTS.forEach(([code, name, x, z]) => {
     const p = panel(airportTexture(code, name), 12);
@@ -138,6 +214,9 @@ export function buildWorld(scene, path) {
 
   return {
     update(t, dt, u, camera, look) {
+      flora.update(t);
+      sky.update(t);
+      waters.forEach((w) => w.update(t));
       stations.forEach(({ s, kf, reach = 1.6 }) => {
         const d = Math.abs(u - kf);
         s.group.visible = d < 5.5;

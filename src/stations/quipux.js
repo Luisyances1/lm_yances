@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { C, hex } from '../palette.js';
 import { box, solid, segments, polyline, rng } from '../ink.js';
-import { contourStack } from '../terrain.js';
 import { canvasTexture, sprite, roundRect } from '../label.js';
 
 function windows(w, h, d, cx, cy, cz) {
@@ -42,14 +41,11 @@ const bubbleTexture = () =>
     });
   });
 
+export const PAD = { r: 27, top: 7, seed: 2.7 };
+
 export function quipux() {
   const group = new THREE.Group();
-  const plateau = contourStack({
-    r0: 30, levels: 7, step: 1, taper: 0.045, seed: 23,
-    colors: [C.lowland, C.meadow, C.meadow, C.ochre, C.ochre, C.sand, C.ochre]
-  });
-  group.add(plateau);
-  const top = plateau.userData.top;
+  const top = PAD.top;
 
   group.add(box(17, 2, 9, C.steel, [-1, top + 1, -4]));
   group.add(box(5.5, 18, 5.5, C.peak, [-5, top + 11, -4]));

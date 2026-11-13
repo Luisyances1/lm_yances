@@ -6,6 +6,7 @@ import { setLineResolution } from './ink.js';
 import { createPath } from './path.js';
 import { buildWorld } from './world.js';
 import { mountUI } from './ui.js';
+import { createSun, assignShadows } from './lighting.js';
 
 async function start() {
   await Promise.all([
@@ -17,6 +18,8 @@ async function start() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   const mobile = matchMedia('(max-width: 760px)').matches;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(C.haze);
@@ -24,7 +27,9 @@ async function start() {
 
   const camera = new THREE.PerspectiveCamera(mobile ? 58 : 50, 1, 0.5, 700);
   const path = createPath();
+  const sun = createSun(scene, { mobile });
   const world = buildWorld(scene, path);
+  assignShadows(scene);
   let snap = false;
   const ui = mountUI(path, { onSnap: () => (snap = true) });
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -81,6 +86,7 @@ async function start() {
     py += (ty - py) * Math.min(1, dt * 2);
     const look = path.apply(camera, u, px, py);
     world.update(t, dt, u, camera, look);
+    sun.follow(camera);
     ui.update(u);
     renderer.render(scene, camera);
   });
