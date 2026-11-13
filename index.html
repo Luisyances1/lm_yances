@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luis Miguel Yances Castillo · Desarrollador de software</title>
+    <meta name="description" content="Recorrido 3D por la trayectoria de Luis Miguel Yances Castillo, desarrollador de software: Montería, Medellín y agentes de voz con IA." />
+    <meta name="theme-color" content="#e3ead8" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%231f5aa6' stroke-width='4'/%3E%3Crect x='14' y='6' width='4' height='20' fill='%23b5237e' transform='rotate(-20 16 16)'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div id="veil" aria-hidden="true"></div>
+    <div id="track" aria-hidden="true"></div>
+
+    <header class="bar">
+      <a class="brand" href="#" id="brand">Luis Miguel Yances Castillo</a>
+      <nav class="actions">
+        <button type="button" id="open-text">Ver en texto</button>
+        <a id="pdf-top" download><span class="long">Descargar hoja de vida</span><span class="short">CV en PDF</span></a>
+      </nav>
+    </header>
+
+    <section id="intro" class="intro">
+      <h1>Luis Miguel <span>Yances Castillo</span></h1>
+      <p>Desarrollador de software. Esta es mi ruta: de Montería a Medellín, y del análisis de datos a los agentes de voz con IA.</p>
+      <p class="hint">Desliza para avanzar</p>
+    </section>
+
+    <aside id="stop" class="stop" aria-live="polite" hidden>
+      <p class="where"><span class="code"></span><span class="place"></span></p>
+      <h2 class="role"></h2>
+      <p class="org"></p>
+      <p class="elev"></p>
+    </aside>
+
+    <nav id="route" class="route" aria-label="Paradas del recorrido">
+      <ol></ol>
+    </nav>
+
+    <section id="final" class="final" hidden>
+      <h2>Próximo destino</h2>
+      <p>Busco un nuevo equipo como desarrollador de software. Trabajo en remoto desde Colombia y estoy abierto a reubicarme.</p>
+      <ul class="contact"></ul>
+      <div class="cta">
+        <a id="mail" class="primary">Escribirme por correo</a>
+        <a id="pdf-final" download>Descargar hoja de vida (PDF)</a>
+        <button type="button" id="restart">Volver al inicio</button>
+      </div>
+    </section>
+
+    <dialog id="text-cv" aria-labelledby="text-cv-title">
+      <div class="sheet">
+        <div class="sheet-head">
+          <h2 id="text-cv-title">Luis Miguel Yances Castillo</h2>
+          <button type="button" id="close-text">Cerrar</button>
+        </div>
+        <div id="text-cv-body"></div>
+      </div>
+    </dialog>
+
+    <noscript>
+      <p class="noscript">Esta página necesita JavaScript para mostrar el recorrido 3D. Puedes descargar la hoja de vida en <a href="cv-luis-miguel-yances.pdf">PDF</a>.</p>
+    </noscript>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
